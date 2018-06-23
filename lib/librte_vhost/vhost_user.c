@@ -146,11 +146,15 @@ vhost_user_reset_owner(struct virtio_net *dev)
  * The features that we support are requested.
  */
 static uint64_t
-vhost_user_get_features(struct virtio_net *dev)
+vhost_user_get_features(struct virtio_net *dev, VhostUserMsg *msg)
 {
 	uint64_t features = 0;
 
 	rte_vhost_driver_get_features(dev->ifname, &features);
+
+	msg->payload.u64 = features;
+	msg->size = sizeof(msg->payload.u64);
+
 	return features;
 }
 
@@ -158,11 +162,15 @@ vhost_user_get_features(struct virtio_net *dev)
  * The queue number that we support are requested.
  */
 static uint32_t
-vhost_user_get_queue_num(struct virtio_net *dev)
+vhost_user_get_queue_num(struct virtio_net *dev, VhostUserMsg *msg)
 {
 	uint32_t queue_num = 0;
 
 	rte_vhost_driver_get_queue_num(dev->ifname, &queue_num);
+
+	msg->payload.u64 = (uint64_t)queue_num;
+	msg->size = sizeof(msg->payload.u64);
+
 	return queue_num;
 }
 
@@ -1022,6 +1030,8 @@ vhost_user_get_vring_base(struct virtio_net *dev,
 	rte_free(vq->batch_copy_elems);
 	vq->batch_copy_elems = NULL;
 
+	msg->size = sizeof(msg->payload.state);
+
 	return 0;
 }
 
@@ -1143,6 +1153,8 @@ vhost_user_set_log_base(struct virtio_net *dev, VhostUserMsg *msg)
 	dev->log_addr = (uint64_t)(uintptr_t)addr;
 	dev->log_base = dev->log_addr + off;
 	dev->log_size = size;
+
+	msg->size = sizeof(msg->payload.u64);
 
 	return 0;
 }
@@ -1557,8 +1569,7 @@ vhost_user_msg_handler(int vid, int fd)
 
 	switch (msg.request.master) {
 	case VHOST_USER_GET_FEATURES:
-		msg.payload.u64 = vhost_user_get_features(dev);
-		msg.size = sizeof(msg.payload.u64);
+		vhost_user_get_features(dev, &msg);
 		send_vhost_reply(fd, &msg);
 		break;
 	case VHOST_USER_SET_FEATURES:
@@ -1588,9 +1599,6 @@ vhost_user_msg_handler(int vid, int fd)
 
 	case VHOST_USER_SET_LOG_BASE:
 		vhost_user_set_log_base(dev, &msg);
-
-		/* it needs a reply */
-		msg.size = sizeof(msg.payload.u64);
 		send_vhost_reply(fd, &msg);
 		break;
 	case VHOST_USER_SET_LOG_FD:
@@ -1610,7 +1618,6 @@ vhost_user_msg_handler(int vid, int fd)
 
 	case VHOST_USER_GET_VRING_BASE:
 		vhost_user_get_vring_base(dev, &msg);
-		msg.size = sizeof(msg.payload.state);
 		send_vhost_reply(fd, &msg);
 		break;
 
@@ -1628,8 +1635,7 @@ vhost_user_msg_handler(int vid, int fd)
 		break;
 
 	case VHOST_USER_GET_QUEUE_NUM:
-		msg.payload.u64 = (uint64_t)vhost_user_get_queue_num(dev);
-		msg.size = sizeof(msg.payload.u64);
+		vhost_user_get_queue_num(dev, &msg);
 		send_vhost_reply(fd, &msg);
 		break;
 
