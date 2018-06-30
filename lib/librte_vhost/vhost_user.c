@@ -706,10 +706,10 @@ vhost_memory_changed(struct VhostUserMemory *new,
 }
 
 static int
-vhost_user_set_mem_table(struct virtio_net **pdev, struct VhostUserMsg *pmsg)
+vhost_user_set_mem_table(struct virtio_net **pdev, VhostUserMsg *msg)
 {
 	struct virtio_net *dev = *pdev;
-	struct VhostUserMemory memory = pmsg->payload.memory;
+	struct VhostUserMemory memory = msg->payload.memory;
 	struct rte_vhost_mem_region *reg;
 	void *mmap_addr;
 	uint64_t mmap_size;
@@ -730,7 +730,7 @@ vhost_user_set_mem_table(struct virtio_net **pdev, struct VhostUserMsg *pmsg)
 			"(%d) memory regions not changed\n", dev->vid);
 
 		for (i = 0; i < memory.nregions; i++)
-			close(pmsg->fds[i]);
+			close(msg->fds[i]);
 
 		return 0;
 	}
@@ -766,7 +766,7 @@ vhost_user_set_mem_table(struct virtio_net **pdev, struct VhostUserMsg *pmsg)
 	dev->mem->nregions = memory.nregions;
 
 	for (i = 0; i < memory.nregions; i++) {
-		fd  = pmsg->fds[i];
+		fd  = msg->fds[i];
 		reg = &dev->mem->regions[i];
 
 		reg->guest_phys_addr = memory.regions[i].guest_phys_addr;
@@ -905,16 +905,16 @@ virtio_is_ready(struct virtio_net *dev)
 }
 
 static void
-vhost_user_set_vring_call(struct virtio_net *dev, struct VhostUserMsg *pmsg)
+vhost_user_set_vring_call(struct virtio_net *dev, VhostUserMsg *msg)
 {
 	struct vhost_vring_file file;
 	struct vhost_virtqueue *vq;
 
-	file.index = pmsg->payload.u64 & VHOST_USER_VRING_IDX_MASK;
-	if (pmsg->payload.u64 & VHOST_USER_VRING_NOFD_MASK)
+	file.index = msg->payload.u64 & VHOST_USER_VRING_IDX_MASK;
+	if (msg->payload.u64 & VHOST_USER_VRING_NOFD_MASK)
 		file.fd = VIRTIO_INVALID_EVENTFD;
 	else
-		file.fd = pmsg->fds[0];
+		file.fd = msg->fds[0];
 	RTE_LOG(INFO, VHOST_CONFIG,
 		"vring call idx:%d file:%d\n", file.index, file.fd);
 
@@ -926,17 +926,17 @@ vhost_user_set_vring_call(struct virtio_net *dev, struct VhostUserMsg *pmsg)
 }
 
 static void
-vhost_user_set_vring_kick(struct virtio_net **pdev, struct VhostUserMsg *pmsg)
+vhost_user_set_vring_kick(struct virtio_net **pdev, VhostUserMsg *msg)
 {
 	struct vhost_vring_file file;
 	struct vhost_virtqueue *vq;
 	struct virtio_net *dev = *pdev;
 
-	file.index = pmsg->payload.u64 & VHOST_USER_VRING_IDX_MASK;
-	if (pmsg->payload.u64 & VHOST_USER_VRING_NOFD_MASK)
+	file.index = msg->payload.u64 & VHOST_USER_VRING_IDX_MASK;
+	if (msg->payload.u64 & VHOST_USER_VRING_NOFD_MASK)
 		file.fd = VIRTIO_INVALID_EVENTFD;
 	else
-		file.fd = pmsg->fds[0];
+		file.fd = msg->fds[0];
 	RTE_LOG(INFO, VHOST_CONFIG,
 		"vring kick idx:%d file:%d\n", file.index, file.fd);
 
@@ -1058,7 +1058,7 @@ vhost_user_set_vring_enable(struct virtio_net *dev,
 
 static void
 vhost_user_get_protocol_features(struct virtio_net *dev,
-				 struct VhostUserMsg *msg)
+				 VhostUserMsg *msg)
 {
 	uint64_t features, protocol_features;
 
@@ -1089,7 +1089,7 @@ vhost_user_set_protocol_features(struct virtio_net *dev,
 }
 
 static int
-vhost_user_set_log_base(struct virtio_net *dev, struct VhostUserMsg *msg)
+vhost_user_set_log_base(struct virtio_net *dev, VhostUserMsg *msg)
 {
 	int fd = msg->fds[0];
 	uint64_t size, off;
@@ -1156,7 +1156,7 @@ vhost_user_set_log_base(struct virtio_net *dev, struct VhostUserMsg *msg)
  * a flag 'broadcast_rarp' to let rte_vhost_dequeue_burst() inject it.
  */
 static int
-vhost_user_send_rarp(struct virtio_net *dev, struct VhostUserMsg *msg)
+vhost_user_send_rarp(struct virtio_net *dev, VhostUserMsg *msg)
 {
 	uint8_t *mac = (uint8_t *)&msg->payload.u64;
 	struct rte_vdpa_device *vdpa_dev;
@@ -1185,7 +1185,7 @@ vhost_user_send_rarp(struct virtio_net *dev, struct VhostUserMsg *msg)
 }
 
 static int
-vhost_user_net_set_mtu(struct virtio_net *dev, struct VhostUserMsg *msg)
+vhost_user_net_set_mtu(struct virtio_net *dev, VhostUserMsg *msg)
 {
 	if (msg->payload.u64 < VIRTIO_MIN_MTU ||
 			msg->payload.u64 > VIRTIO_MAX_MTU) {
@@ -1201,7 +1201,7 @@ vhost_user_net_set_mtu(struct virtio_net *dev, struct VhostUserMsg *msg)
 }
 
 static int
-vhost_user_set_req_fd(struct virtio_net *dev, struct VhostUserMsg *msg)
+vhost_user_set_req_fd(struct virtio_net *dev, VhostUserMsg *msg)
 {
 	int fd = msg->fds[0];
 
@@ -1267,7 +1267,7 @@ is_vring_iotlb_invalidate(struct vhost_virtqueue *vq,
 }
 
 static int
-vhost_user_iotlb_msg(struct virtio_net **pdev, struct VhostUserMsg *msg)
+vhost_user_iotlb_msg(struct virtio_net **pdev, VhostUserMsg *msg)
 {
 	struct virtio_net *dev = *pdev;
 	struct vhost_iotlb_msg *imsg = &msg->payload.iotlb;
@@ -1313,7 +1313,7 @@ vhost_user_iotlb_msg(struct virtio_net **pdev, struct VhostUserMsg *msg)
 
 /* return bytes# of read on success or negative val on failure. */
 static int
-read_vhost_message(int sockfd, struct VhostUserMsg *msg)
+read_vhost_message(int sockfd, VhostUserMsg *msg)
 {
 	int ret;
 
@@ -1342,7 +1342,7 @@ read_vhost_message(int sockfd, struct VhostUserMsg *msg)
 }
 
 static int
-send_vhost_message(int sockfd, struct VhostUserMsg *msg, int *fds, int fd_num)
+send_vhost_message(int sockfd, VhostUserMsg *msg, int *fds, int fd_num)
 {
 	if (!msg)
 		return 0;
@@ -1352,7 +1352,7 @@ send_vhost_message(int sockfd, struct VhostUserMsg *msg, int *fds, int fd_num)
 }
 
 static int
-send_vhost_reply(int sockfd, struct VhostUserMsg *msg)
+send_vhost_reply(int sockfd, VhostUserMsg *msg)
 {
 	if (!msg)
 		return 0;
@@ -1366,7 +1366,7 @@ send_vhost_reply(int sockfd, struct VhostUserMsg *msg)
 }
 
 static int
-send_vhost_slave_message(struct virtio_net *dev, struct VhostUserMsg *msg,
+send_vhost_slave_message(struct virtio_net *dev, VhostUserMsg *msg,
 			 int *fds, int fd_num)
 {
 	int ret;
@@ -1457,7 +1457,7 @@ int
 vhost_user_msg_handler(int vid, int fd)
 {
 	struct virtio_net *dev;
-	struct VhostUserMsg msg;
+	VhostUserMsg msg;
 	struct rte_vdpa_device *vdpa_dev;
 	int did = -1;
 	int ret;
@@ -1745,7 +1745,7 @@ int
 vhost_user_iotlb_miss(struct virtio_net *dev, uint64_t iova, uint8_t perm)
 {
 	int ret;
-	struct VhostUserMsg msg = {
+	VhostUserMsg msg = {
 		.request.slave = VHOST_USER_SLAVE_IOTLB_MSG,
 		.flags = VHOST_USER_VERSION,
 		.size = sizeof(msg.payload.iotlb),
@@ -1775,7 +1775,7 @@ static int vhost_user_slave_set_vring_host_notifier(struct virtio_net *dev,
 	int *fdp = NULL;
 	size_t fd_num = 0;
 	int ret;
-	struct VhostUserMsg msg = {
+	VhostUserMsg msg = {
 		.request.slave = VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG,
 		.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY,
 		.size = sizeof(msg.payload.area),
