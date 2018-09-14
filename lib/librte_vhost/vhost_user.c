@@ -1022,6 +1022,14 @@ vhost_user_set_vring_call(struct virtio_net *dev, VhostUserMsg *msg)
 	vq->callfd = file.fd;
 }
 
+static void vhost_user_set_vring_err(struct virtio_net *dev __rte_unused,
+			VhostUserMsg *msg)
+{
+	if (!(msg->payload.u64 & VHOST_USER_VRING_NOFD_MASK))
+		close(msg->fds[0]);
+	RTE_LOG(INFO, VHOST_CONFIG, "not implemented\n");
+}
+
 static int
 vhost_user_set_vring_kick(struct virtio_net **pdev, VhostUserMsg *msg)
 {
@@ -1257,6 +1265,13 @@ vhost_user_set_log_base(struct virtio_net *dev, VhostUserMsg *msg)
 	msg->size = sizeof(msg->payload.u64);
 
 	return 0;
+}
+
+static void
+vhost_user_set_log_fd(struct virtio_net *dev __rte_unused, VhostUserMsg *msg)
+{
+	close(msg->fds[0]);
+	RTE_LOG(INFO, VHOST_CONFIG, "not implemented.\n");
 }
 
 /*
@@ -1703,8 +1718,7 @@ vhost_user_msg_handler(int vid, int fd)
 		send_vhost_reply(fd, &msg);
 		break;
 	case VHOST_USER_SET_LOG_FD:
-		close(msg.fds[0]);
-		RTE_LOG(INFO, VHOST_CONFIG, "not implemented.\n");
+		vhost_user_set_log_fd(dev, &msg);
 		break;
 
 	case VHOST_USER_SET_VRING_NUM:
@@ -1732,9 +1746,7 @@ vhost_user_msg_handler(int vid, int fd)
 		break;
 
 	case VHOST_USER_SET_VRING_ERR:
-		if (!(msg.payload.u64 & VHOST_USER_VRING_NOFD_MASK))
-			close(msg.fds[0]);
-		RTE_LOG(INFO, VHOST_CONFIG, "not implemented\n");
+		vhost_user_set_vring_err(dev, &msg);
 		break;
 
 	case VHOST_USER_GET_QUEUE_NUM:
